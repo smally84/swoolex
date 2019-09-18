@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link href="element-ui/element-ui.css" rel="stylesheet">
+    <title>Swoolex控制台</title>
+</head>
+<style>
+    *{
+        margin:0;
+        padding:0;
+        word-wrap: break-word;
+        font-family: "PingFang SC","Helvetica Neue",Helvetica,"Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
+    }
+    html,body{
+        height: 100%;
+        width: 100%;
+        background-color: black;
+    }
+    #app{
+        background-color: black;
+    }
+    .center-body{
+        display: -webkit-flex; /* Safari */
+        display: flex;
+        flex-direction: row;
+    }
+    .dialog{
+        height:70%;
+        overflow-y: auto;
+        display: -webkit-flex; /* Safari */
+        display: flex;
+        flex-direction: column;
+    }
+    .el-tabs__content{
+        flex:1;
+        display: -webkit-flex; /* Safari */
+        display: flex;
+        flex-direction: row;
+    }
+    .el-dialog__body{
+        flex:1;
+        padding: 0px 10px;
+        overflow: auto;
+        word-wrap: break-word;
+    }
+    pre{
+        white-space:pre-wrap; /* css3.0 */
+        white-space:-moz-pre-wrap; /* Firefox */
+        white-space:-o-pre-wrap; /* Opera 7 */
+        word-wrap:break-word; /* Internet Explorer 5.5+ */
+    }
+</style>
+<body style="height:100%;widht:100%;overflow: hidden;">
+<div id="app" style="display: -webkit-flex;display:flex;flex-direction:column;height:100%;width:100%;">
+    <div style="width:100%;height:60px;display: -webkit-flex;display:flex;flex-direction:row;align-items: center;">
+        <div style="margin-left:10px;font-size:30px;color:white;display: -webkit-flex;display:flex;flex-direction:row;align-items: center;">
+            <div>Swoolex控制台</div>
+            <div style="margin-left:10px;font-size:14px;color:green;border:1px solid green;padding:0;height: 40px;">
+                <div>php版本:{{php_version}}</div>
+                <div>swoole版本:{{swoole_version}}</div>
+            </div>
+        </div>
+        <div style="flex:1;display: -webkit-flex;display:flex;flex-direction:row;justify-content:flex-end;margin-right: 10px;">
+            <el-button v-bind:type="swoolexEnableBtnType"
+                       v-bind:disabled="swoolexEnableBtnDisabled"
+                       @click="enableSwoolex">
+                {{swoolexEnableBtnText}}
+            </el-button>
+            <el-button v-bind:type="swoolexRestartBtnType"
+                       v-bind:disabled="swoolexRestartBtnDisabled"
+                       @click="restartSwoolex">
+                {{swoolexRestartBtnText}}
+            </el-button>
+        </div>
+    </div>
+    <div style="display: -webkit-flex;display:flex;flex-direction: row;flex:1;overflow-y: auto;position:relative;">
+        <el-card   body-style="height: 100%;flex:1;display: flex;display: -webkit-flex;flex-direction: column;"
+                   style="flex:1;display: -webkit-flex;display: flex;flex-direction: column;">
+            <div slot="header">
+                <span><i class="el-icon-date" style="margin:auto auto;"><b>调试输出</b></i></span>
+                <el-button style="float: right; margin-left:5px;padding: 3px 0"
+                           @click="monitorTypeSetDialogVisible=true"
+                           type="text">监听设置
+                </el-button>
+                <el-button style="float: right; margin-left:5px;padding: 3px 0"
+                           @click="bootlogDialogVisible=true"
+                           type="text">启动日志
+                </el-button>
+                <el-button style="float: right; margin-right:5px;padding: 3px 0"
+                           @click="runlogDialogVisible=true"
+                           type="text">运行日志
+                </el-button>
+                <el-button style="float: right; margin-right:5px;padding: 3px 0"
+                           @click="refreshCtl"
+                           type="text">{{refreshText}}
+                </el-button>
+            </div>
+            <div style="flex:1;height:100%;overflow-y:auto;overflow-x:hidden;word-wrap:break-word;" v-html="swoolexDebugLog"></div>
+        </el-card>
+        <el-card style="width:300px;">
+            <div slot="header" class="clearfix">
+                <span><i class="el-icon-pie-chart"><b>内存使用情况</b></i></span>
+            </div>
+            <div>
+                <ve-bar :data="chartData"></ve-bar>
+            </div>
+        </el-card>
+        <el-card class="box-card" style="width:250px;">
+            <div slot="header" class="clearfix">
+                <span><i class="el-icon-warning-outline"><b>服务器活动数据</b></i></span>
+            </div>
+            <div style="font-size: 12px;">
+                <li style="margin:5px;color:green;">已运行:{{swoolexRunTime}}</li>
+                <li style="margin:5px;">当前连接的数量……{{swoolexConnectionNum}}</li>
+                <li style="margin:5px;">接受了多少个连接……{{swoolexAcceptCount}}</li>
+                <li style="margin:5px;">关闭的连接数量……{{swoolexCloseCount}}</li>
+                <li style="margin:5px;">当前排队的任务数……{{swoolexTaskingNum}}</li>
+                <li style="margin:5px;">收到的请求次数……{{swoolexRequestCount}}</li>
+                <li style="margin:5px;">消息队列任务数量……{{swoolexTaskQueueNum}}</li>
+                <li style="margin:5px;">消息队列内存占用……{{swoolexTaskQueueBytes}}</li>
+                <li style="margin:5px;">当前协程数量……{{swoolexCoroutineNum}}</li>
+            </div>
+        </el-card>
+    </div>
+    <div style="height:30px;text-align: center;">
+        <b style="color:white;font-size: 16px;">Powered by Swoolex</b>
+    </div>
+    <el-dialog
+            title="监听设置"
+            :visible.sync="monitorTypeSetDialogVisible"
+            custom-class ="dialog"
+            width="50%">
+        <div style="width:100%;height:100%;overflow-y: auto;">
+            <el-input
+                    type="textarea"
+                    :rows="10"
+                    placeholder="输入监听的日志类型，多个用逗号分隔，调试输出将会过滤"
+                    v-model="debugMonitorTypes">
+            </el-input>
+        </div>
+        <span slot="footer">
+                <el-button @click="monitorTypeSetDialogVisible=false">关 闭</el-button>
+                <el-button @click="saveMonitorType" type="primary">确 定</el-button>
+            </span>
+    </el-dialog>
+    <el-dialog
+            title="启动Log"
+            :visible.sync="bootlogDialogVisible"
+            custom-class ="dialog"
+            @opened = "getBootLog"
+            width="50%">
+        <div style="height:100%;overflow-y:auto;overflow-x:hidden;word-wrap:break-word;"
+             v-html="bootLogTxt"
+             v-loading="runlogDialogLoading">
+        </div>
+        <span slot="footer">
+                <el-button @click="bootlogDialogVisible = false">关 闭</el-button>
+            </span>
+    </el-dialog>
+    <el-dialog
+            title="运行Log"
+            :visible.sync="runlogDialogVisible"
+            custom-class ="dialog"
+            @opened = "getRunLog"
+            width="50%">
+        <div style="height:100%;overflow-y:auto;overflow-x:hidden;word-wrap:break-word;"
+             v-html="runLogTxt"
+             v-loading="runlogDialogLoading" >
+        </div>
+        <span slot="footer">
+                <el-button @click="runlogDialogVisible = false">关 闭</el-button>
+            </span>
+    </el-dialog>
+</div>
+</body>
+<!-- import Vue before Element -->
+<script src="vue.js"></script>
+<!-- import element-ui.js -->
+<script src="element-ui/element-ui.js"></script>
+<!-- axios -->
+<script src="axios.js"></script>
+<!--v-charts-->
+<script src="vchart/echarts.js"></script>
+<script src="vchart/v-charts.js"></script>
+<link rel="stylesheet" href="vchart/v-charts.css">
+<script>
+    //自定义websocket服务器地址
+    let wsUrl = "ws://"+window.location.host+"/websocket";
+    //实例化vue
+    let vm = new Vue({
+        el: '#app',
+        data:{
+            php_version:'',
+            swoole_version:'',
+            swoolexEnableFlag:0,
+            swoolexEnableBtnDisabled:false,
+            swoolexRestartFlag:0,
+            swoolexRestartBtnDisabled:false,
+            swoolexStats:null,
+            swoolexDebugLog:'',
+            swoolexDebugLogArray:[],
+            bootLogTxt:'',
+            runLogTxt:'',
+            bootlogDialogVisible:false,
+            runlogDialogVisible:false,
+            bootlogDialogLoading:false,
+            runlogDialogLoading:false,
+            debugMonitorTypes:'',
+            monitorTypeSetDialogVisible:false,
+            refreshFlag:true,
+            refreshText:'停止刷新',
+            chartData: {
+                columns: ['workerId','内存占用(Mb)','占用峰值(Mb)'],
+                rows: []
+            }
+        },
+        computed: {
+            swoolexEnableBtnType : function () {
+                return this.swoolexEnableFlag?'primary':'info';
+            },
+            swoolexEnableBtnText : function () {
+                return this.swoolexEnableFlag?'关闭Swoolex':'启用Swoolex';
+            },
+            swoolexRestartBtnType : function () {
+                return 'success';
+            },
+            swoolexRestartBtnText : function(){
+                return this.swoolexRestartFlag?'swoolex正在重启中……':'重启Swoolex';
+            },
+            swoolexRunTime : function () {
+                let hour = 0;
+                let minute = 0;
+                if(this.swoolexStats==null)return "服务器未启动";
+                let start_time =  this.swoolexStats.hasOwnProperty('start_time')?this.swoolexStats.start_time:0;
+                let run_time = parseInt(new Date().getTime()/1000) - start_time;
+                if(run_time/3600>=1)hour = parseInt(run_time/3600);
+                if(run_time%3600/60>=1)minute = parseInt(run_time%3600/60);
+                return hour+"小时"+minute+'分钟'+run_time%60+'秒';
+            },
+            swoolexConnectionNum : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('connection_num')?this.swoolexStats.connection_num:0;
+            },
+            swoolexAcceptCount : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('accept_count')?this.swoolexStats.accept_count:0;
+            },
+            swoolexCloseCount : function () {
+                if(this.swoolexStats==null)return "";
+                return  this.swoolexStats.hasOwnProperty('close_count')?this.swoolexStats.close_count:0;
+            },
+            swoolexTaskingNum : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('tasking_num')?this.swoolexStats.tasking_num:0;
+            },
+            swoolexRequestCount : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('request_count')?this.swoolexStats.request_count:0;
+            },
+            swoolexTaskQueueNum : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('task_queue_num')?this.swoolexStats.task_queue_num:0;
+            },
+            swoolexTaskQueueBytes : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('task_queue_bytes')?this.swoolexStats.task_queue_bytes:0;
+            },
+            swoolexCoroutineNum : function () {
+                if(this.swoolexStats==null)return "";
+                return this.swoolexStats.hasOwnProperty('coroutine_num')?this.swoolexStats.coroutine_num:0;
+            },
+            debugMonitorTypeSetBtnText : function () {
+                if(this.debugMonitorTypeSetDisable==true)return '编辑';
+                else return '保存';
+            }
+        },
+        mounted:function(){
+            /** 获取swoolex的控制状态
+             */
+            let that = this;
+            axios.get('/index.php?status=1')
+                .then((response)=>{
+                    let res = response.data;
+                    this.swoolexEnableFlag  = res.data.swoolex_enable?1:0;
+                    this.swoolexRestartFlag = res.data.swoolex_restart?1:0;
+                    this.php_version = res.data.php_version;
+                    this.swoole_version = res.data.swoole_version;
+                })
+                .catch(function(error) {
+                    console.log(error);
+                });
+        },
+        methods:{
+            // 日志刷新控制
+            refreshCtl:function(){
+                this.refreshFlag = !this.refreshFlag;
+                this.refreshFlag?this.refreshText="停止刷新":this.refreshText="开始刷新";
+            },
+            // 启用swoole
+            enableSwoolex:function(event) {
+                let that = this;
+                that.swoolexEnableBtnDisabled = true;
+                let alertText = this.swoolexEnableFlag?'你确定要关闭Swoolex吗?':'你确定要启用Swoolex吗?';
+                this.$confirm(alertText, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                }).then(() => {
+                    let swoolex_enable = this.swoolexEnableFlag?0:1;
+                    this.swoolexEnableFlag = swoolex_enable;
+                    axios.get('/index.php?swoolex_enable='+swoolex_enable)
+                        .then( function(response){
+                            that.swoolexEnableBtnDisabled = false;
+                        })
+                        .catch(function(error) {
+                            that.swoolexEnableBtnDisabled = false;
+                            console.log(error);
+                        });
+                }).catch(() => {
+                    that.swoolexEnableBtnDisabled = false;
+                    this.$message({
+                        type: 'info',
+                        message: '已取消'
+                    });
+                });
+            },
+            // 重启swoole
+            restartSwoolex:function (event)
+            {
+                let that = this;
+                let alertText = '你确定要重启Swoolex吗?';
+                let flag = this.swoolexRestartFlag?1:0;
+                if(flag===1){
+                    this.$message('swoolex正在重启中……');
+                    return;
+                }
+                that.swoolexRestartBtnDisabled = true;
+                this.$confirm(alertText, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                }).then(() => {
+                    that.swoolexRestartFlag = 1;
+                    axios.get('/index.php?swoolex_restart=1')
+                        .then( (response)=> {
+                            that.swoolexRestartFlag = false;
+                            that.swoolexRestartBtnDisabled = false;
+                        })
+                        .catch((error) => {
+                            console.log(error);
+                            that.swoolexRestartFlag = false;
+                        });
+                }).catch(() => {
+                    that.swoolexRestartFlag = false;
+                    this.$message({
+                        type: 'info',
+                        message: '已取消'
+                    });
+                });
+            },
+            /**
+             * 设置调试监听类型
+             */
+            saveMonitorType:function () {
+
+            },
+            /**获取启动日志
+             */
+            getBootLog:function () {
+                this.bootlogDialogLoading = true;
+                axios.get('/index.php?bootlog=1')
+                    .then( (response)=> {
+                        this.bootLogTxt = response.data;
+                        this.bootlogDialogLoading = false;
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    });
+            },
+            /**获取运行日志
+             */
+            getRunLog:function () {
+                this.runlogDialogLoading = true;
+                axios.get('/index.php?runlog=1')
+                    .then( (response)=> {
+                        this.runLogTxt = response.data;
+                        this.runlogDialogLoading = false;
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    });
+            },
+        }
+    });
+    /**
+     * 日志处理函数，默认仅显示最近的200条
+     **/
+    let displayLog = function (data,oldLogArray,disNum=50) {
+        //获取当前时间
+        let date =  new Date();
+        let year = date.getFullYear();
+        let month = date.getMonth() + 1;
+        let day = date.getDate();
+        let hours = date.getHours()<10?'0'+date.getHours():date.getHours();
+        let minutes = date.getMinutes()<10?'0'+date.getMinutes():date.getMinutes();
+        let seconds = date.getSeconds()<10?'0'+date.getSeconds():date.getSeconds();
+        //日志格式转换
+        let _newLogArray = [];
+        let cLog     = '<span style="font-size:12px;color:green;">['+year+'-'+month+'-'+day+' '+hours+':'+minutes+':'+seconds+']</span>&nbsp;'
+            +'<span style="font-size: 12px;">'+data+'</span>';
+        oldLogArray.push(cLog);
+        oldLogArray.reverse();
+        for(let i = 0;i<oldLogArray.length;i++)
+        {
+            if(i<disNum)
+            {
+                _newLogArray.push(oldLogArray[i]);
+            }
+            else break;
+        }
+        return _newLogArray;
+    };
+    /**
+     * 定义websocket类
+     */
+    class WS
+    {
+        /**
+         * 构造函数
+         * */
+        constructor(url)
+        {
+            this.url = url;
+            this.createWebSocket();
+        }
+        /**
+         * 发送数据
+         */
+        send(data)
+        {
+            if(this.ws == null)this.reconnect();
+            else if(this.ws && this.ws.readyState===1)this.ws.send(data);
+            else if(this.ws && this.ws.readyState==3) {
+                this.reconnect();
+            }
+        }
+        /**
+         * 重连
+         */
+        reconnect() {
+            this.ws = null;
+            let that = this;
+            setTimeout(function () {
+                that.createWebSocket();
+            },100);
+        }
+        /**
+         *  创建连接
+         */
+        createWebSocket() {
+            let url = this.url;
+            let that = this;
+            try {
+                if ('WebSocket' in window) {
+                    that.ws = new WebSocket(url);
+                    that.ws.onopen = function () {
+                        let send = {
+                            'uri':"Swoolex/Console:subscribe",
+                            'data':{}
+                        };
+                        that.send(JSON.stringify(send)+"\0");
+
+                    };
+                    that.ws.onmessage = function (event) {
+
+                        let revData = event.data;
+                        /** 服务器连接信息
+                         */
+                        revData = revData.replace("\0",'');
+                        if(revData[0]==='{'){
+                            revData = JSON.parse(revData);
+                            /** 服务运行状态
+                             */
+                            if(revData && revData.hasOwnProperty('msgType') && revData.msgType =='serverStats')
+                            {
+                                let stats = revData.data;
+                                let memory_usage = stats.memory_usage;
+                                let temp_usage = [];
+                                vm.swoolexStats = stats;
+                                for(let workerId in  memory_usage)
+                                {
+                                    let usageArray =  memory_usage[workerId].split('_');
+                                    temp_usage.push({'workerId':workerId,'内存占用(Mb)':usageArray[0],'占用峰值(Mb)':usageArray[1]});
+                                }
+                                vm.chartData.rows =temp_usage;
+
+                                if(stats.hasOwnProperty('swoolex_enable'))vm.swoolexEnableFlag = stats.swoolex_enable;
+                                if(stats.hasOwnProperty('swoolex_restart')) vm.swoolexRestartFlag = stats.swoolex_restart;
+                            }
+                            else if(!vm.refreshFlag)return;
+                            else if(revData && revData.hasOwnProperty('msgType'))
+                            {
+                                let res = displayLog('<span style="color:red;">('+revData.msgType+')</span>'+revData.data,vm.swoolexDebugLogArray);
+                                vm.swoolexDebugLog = res.join('<br>');
+                                vm.swoolexDebugLogArray = res.reverse();
+                            }
+                        }
+                    };
+                    that.ws.onclose = function () {
+                        that.ws = null;
+                    };
+                    that.ws.onerror = function () {
+                        that.ws = null;
+                    };
+                }
+            } catch (e) {
+                this.ws = null;
+            }
+        }
+
+    }
+    /** 实例化websocket类
+     */
+    let ws = new WS(wsUrl);
+
+    /**
+     * 定时器1s
+     */
+    let t_count = 0;
+    setInterval(function(){
+        t_count ++;
+        //websocket心跳信号
+        if(vm.swoolexRestartFlag)ws.send("ping\0");
+        else{
+            if(t_count%5==0)ws.send("ping\0");
+        }
+    },1000);
+
+
+</script>
+</html>

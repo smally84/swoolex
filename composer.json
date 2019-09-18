@@ -1,0 +1,19 @@
+{
+  "require":{
+    "php": ">=7.2",
+    "ext-json":"*",
+    "mongodb/mongodb":">4.0"
+  },
+  "require-dev":{
+  },
+  "autoload": {
+      "psr-4": {
+          "Swoolex\\" : "swoolex",
+          "swoolex\\" : "swoolex",
+          "App\\" : "app",
+          "app\\" : "app",
+          "Etc\\" : "etc",
+          "etc\\" : "etc"
+      }
+  }
+}
