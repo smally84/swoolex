@@ -28,11 +28,14 @@
 
 # 容器
 
+
 # aop切面编程
 
 # mysql orm
+> 支持常规的mysql链式操作
 
 # 连接池
+> 支持mysql和redis连接池
 
 # tcp
 
