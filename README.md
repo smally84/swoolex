@@ -1,6 +1,6 @@
 # swoolex
 基于swoole的轻量级web框架
-> 注：项目已停止更新。项目之初，主要考虑swoole协程的强大，但相比golang比较，仍有许多不足，现已转向golang。
+> 注：项目已停止更新。项目之初，主要考虑swoole协程的强大，但相比golang，仍有许多不足，现已转向golang。
 
 # 路由
 > 暂仅支持pathinfo模式
